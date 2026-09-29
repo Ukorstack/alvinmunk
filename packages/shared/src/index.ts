@@ -91,14 +91,65 @@ export const PASSPHRASE = {
   mainnet: 'Public Global Stellar Network ; September 2015',
 } as const;
 
-/** Reads the public NEXT_PUBLIC_* env into a typed config (client + server safe). */
+/** Per-network default RPC and Horizon URLs. Never fall back to testnet URLs on mainnet. */
+const DEFAULT_URLS: Record<StellarNetwork, { rpcUrl: string; horizonUrl: string }> = {
+  testnet: {
+    rpcUrl: 'https://soroban-testnet.stellar.org',
+    horizonUrl: 'https://horizon-testnet.stellar.org',
+  },
+  mainnet: {
+    rpcUrl: 'https://mainnet.stellar.validationcloud.io/v1/soroban/rpc',
+    horizonUrl: 'https://horizon.stellar.org',
+  },
+};
+
+const VALID_NETWORKS = new Set<string>(['testnet', 'mainnet']);
+
+/**
+ * Reads the public NEXT_PUBLIC_* env into a typed, validated config (client + server safe).
+ *
+ * Validation rules:
+ * - NEXT_PUBLIC_STELLAR_NETWORK must be exactly "testnet" or "mainnet" (case-insensitive,
+ *   whitespace-trimmed). An unknown or empty value throws immediately — it must never
+ *   silently fall through to testnet mode on a misconfigured mainnet deploy.
+ * - NEXT_PUBLIC_NETWORK_PASSPHRASE is optional. When supplied it must equal the expected
+ *   passphrase for the resolved network; a mismatch throws (e.g. testnet passphrase on
+ *   mainnet would let the dev wallet slip through).
+ * - RPC / Horizon URL defaults are per-network, never testnet-fallback on mainnet.
+ */
 export function readNetworkConfig(env: Record<string, string | undefined>): NetworkConfig {
-  const network = (env.NEXT_PUBLIC_STELLAR_NETWORK as StellarNetwork) ?? 'testnet';
+  // Normalize: trim + lowercase so "Testnet ", "TESTNET", "testnet" all work.
+  const raw = (env.NEXT_PUBLIC_STELLAR_NETWORK ?? 'testnet').trim().toLowerCase();
+
+  if (!VALID_NETWORKS.has(raw)) {
+    throw new Error(
+      `Invalid NEXT_PUBLIC_STELLAR_NETWORK value: "${env.NEXT_PUBLIC_STELLAR_NETWORK ?? ''}". ` +
+        `Expected "testnet" or "mainnet".`,
+    );
+  }
+
+  const network = raw as StellarNetwork;
+  const expectedPassphrase = PASSPHRASE[network];
+
+  // If the operator explicitly set a passphrase, validate it matches the network.
+  // This catches copy-paste errors (testnet passphrase on mainnet) that would silently
+  // re-enable the dev wallet and sign mainnet txs with the wrong passphrase.
+  const suppliedPassphrase = env.NEXT_PUBLIC_NETWORK_PASSPHRASE?.trim();
+  if (suppliedPassphrase !== undefined && suppliedPassphrase !== '' && suppliedPassphrase !== expectedPassphrase) {
+    throw new Error(
+      `NEXT_PUBLIC_NETWORK_PASSPHRASE does not match the expected passphrase for network "${network}". ` +
+        `Expected: "${expectedPassphrase}", got: "${suppliedPassphrase}". ` +
+        `Remove the variable to use the correct default, or fix the value.`,
+    );
+  }
+
+  const defaults = DEFAULT_URLS[network];
+
   return {
     network,
-    rpcUrl: env.NEXT_PUBLIC_RPC_URL ?? 'https://soroban-testnet.stellar.org',
-    networkPassphrase: env.NEXT_PUBLIC_NETWORK_PASSPHRASE ?? PASSPHRASE[network],
-    horizonUrl: env.NEXT_PUBLIC_HORIZON_URL ?? 'https://horizon-testnet.stellar.org',
+    rpcUrl: env.NEXT_PUBLIC_RPC_URL ?? defaults.rpcUrl,
+    networkPassphrase: expectedPassphrase,
+    horizonUrl: env.NEXT_PUBLIC_HORIZON_URL ?? defaults.horizonUrl,
     contracts: {
       reputation: env.NEXT_PUBLIC_REPUTATION_CONTRACT_ID ?? '',
       questRegistry: env.NEXT_PUBLIC_QUEST_REGISTRY_CONTRACT_ID ?? '',

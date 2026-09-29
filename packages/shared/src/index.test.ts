@@ -45,7 +45,7 @@ describe('stampArt', () => {
 });
 
 describe('readNetworkConfig', () => {
-  it('defaults to testnet', () => {
+  it('defaults to testnet when NEXT_PUBLIC_STELLAR_NETWORK is absent', () => {
     const c = readNetworkConfig({});
     expect(c.network).toBe('testnet');
     expect(c.networkPassphrase).toBe(PASSPHRASE.testnet);
@@ -54,6 +54,93 @@ describe('readNetworkConfig', () => {
   it('reads contract ids from env', () => {
     const c = readNetworkConfig({ NEXT_PUBLIC_REPUTATION_CONTRACT_ID: 'CREP' });
     expect(c.contracts.reputation).toBe('CREP');
+  });
+
+  // ── Validation: unknown / empty network ─────────────────────────────────────
+  it('throws a clear error for an unknown network value ("pubnet")', () => {
+    expect(() =>
+      readNetworkConfig({ NEXT_PUBLIC_STELLAR_NETWORK: 'pubnet' }),
+    ).toThrow(/Invalid NEXT_PUBLIC_STELLAR_NETWORK/);
+  });
+
+  it('throws a clear error for "Mainnet" (different casing is normalised, "mainnet" is fine)', () => {
+    // Upper-case variants are normalised → "mainnet" (valid), so this should NOT throw.
+    const c = readNetworkConfig({ NEXT_PUBLIC_STELLAR_NETWORK: 'Mainnet' });
+    expect(c.network).toBe('mainnet');
+  });
+
+  it('throws a clear error for an empty-string network value (??  does not catch "")', () => {
+    expect(() =>
+      readNetworkConfig({ NEXT_PUBLIC_STELLAR_NETWORK: '' }),
+    ).toThrow(/Invalid NEXT_PUBLIC_STELLAR_NETWORK/);
+  });
+
+  it('throws a clear error for a whitespace-only network value', () => {
+    expect(() =>
+      readNetworkConfig({ NEXT_PUBLIC_STELLAR_NETWORK: '   ' }),
+    ).toThrow(/Invalid NEXT_PUBLIC_STELLAR_NETWORK/);
+  });
+
+  it('throws for "public" (common near-miss)', () => {
+    expect(() =>
+      readNetworkConfig({ NEXT_PUBLIC_STELLAR_NETWORK: 'public' }),
+    ).toThrow(/Invalid NEXT_PUBLIC_STELLAR_NETWORK/);
+  });
+
+  // ── mainnet: correct per-network default URLs, never testnet fallback ────────
+  it('uses mainnet default RPC URL when network=mainnet and no URL env vars are set', () => {
+    const c = readNetworkConfig({ NEXT_PUBLIC_STELLAR_NETWORK: 'mainnet' });
+    expect(c.rpcUrl).not.toContain('testnet');
+    expect(c.horizonUrl).not.toContain('testnet');
+  });
+
+  it('uses the canonical mainnet passphrase when network=mainnet', () => {
+    const c = readNetworkConfig({ NEXT_PUBLIC_STELLAR_NETWORK: 'mainnet' });
+    expect(c.networkPassphrase).toBe(PASSPHRASE.mainnet);
+    expect(c.networkPassphrase).not.toBe(PASSPHRASE.testnet);
+  });
+
+  it('respects operator-supplied RPC URL on mainnet', () => {
+    const c = readNetworkConfig({
+      NEXT_PUBLIC_STELLAR_NETWORK: 'mainnet',
+      NEXT_PUBLIC_RPC_URL: 'https://my-mainnet-rpc.example.com',
+    });
+    expect(c.rpcUrl).toBe('https://my-mainnet-rpc.example.com');
+  });
+
+  // ── NEXT_PUBLIC_NETWORK_PASSPHRASE: honoured or rejected ─────────────────────
+  it('accepts a NEXT_PUBLIC_NETWORK_PASSPHRASE that matches the network', () => {
+    const c = readNetworkConfig({
+      NEXT_PUBLIC_STELLAR_NETWORK: 'testnet',
+      NEXT_PUBLIC_NETWORK_PASSPHRASE: PASSPHRASE.testnet,
+    });
+    expect(c.networkPassphrase).toBe(PASSPHRASE.testnet);
+  });
+
+  it('throws when NEXT_PUBLIC_NETWORK_PASSPHRASE mismatches the network (testnet phrase on mainnet)', () => {
+    expect(() =>
+      readNetworkConfig({
+        NEXT_PUBLIC_STELLAR_NETWORK: 'mainnet',
+        NEXT_PUBLIC_NETWORK_PASSPHRASE: PASSPHRASE.testnet,
+      }),
+    ).toThrow(/NEXT_PUBLIC_NETWORK_PASSPHRASE does not match/);
+  });
+
+  it('throws when NEXT_PUBLIC_NETWORK_PASSPHRASE mismatches the network (mainnet phrase on testnet)', () => {
+    expect(() =>
+      readNetworkConfig({
+        NEXT_PUBLIC_STELLAR_NETWORK: 'testnet',
+        NEXT_PUBLIC_NETWORK_PASSPHRASE: PASSPHRASE.mainnet,
+      }),
+    ).toThrow(/NEXT_PUBLIC_NETWORK_PASSPHRASE does not match/);
+  });
+
+  it('ignores a blank NEXT_PUBLIC_NETWORK_PASSPHRASE (empty string is treated as absent)', () => {
+    const c = readNetworkConfig({
+      NEXT_PUBLIC_STELLAR_NETWORK: 'testnet',
+      NEXT_PUBLIC_NETWORK_PASSPHRASE: '',
+    });
+    expect(c.networkPassphrase).toBe(PASSPHRASE.testnet);
   });
 });
 
