@@ -30,6 +30,8 @@ async function ensureKit() {
   const { StellarWalletsKit, Networks, SwkAppDarkTheme } = core;
   if (!inited) {
     StellarWalletsKit.init({
+      // SWK's init is Networks-enum-typed; config.network is validated in readNetworkConfig,
+      // so this two-way branch is exhaustive (and matches the signing passphrase).
       network: config.network === 'mainnet' ? Networks.PUBLIC : Networks.TESTNET,
       selectedWalletId: freighter.FREIGHTER_ID,
       // Match the app's dark cosmic palette instead of SWK's default light modal.

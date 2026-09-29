@@ -45,10 +45,82 @@ describe('stampArt', () => {
 });
 
 describe('readNetworkConfig', () => {
-  it('defaults to testnet', () => {
+  it('defaults to testnet when the var is unset', () => {
     const c = readNetworkConfig({});
     expect(c.network).toBe('testnet');
     expect(c.networkPassphrase).toBe(PASSPHRASE.testnet);
+  });
+
+  it('accepts case/whitespace variants of the canonical values', () => {
+    expect(readNetworkConfig({ NEXT_PUBLIC_STELLAR_NETWORK: ' Mainnet ' }).network).toBe('mainnet');
+    expect(readNetworkConfig({ NEXT_PUBLIC_STELLAR_NETWORK: 'TESTNET' }).network).toBe('testnet');
+  });
+
+  it.each(['public', 'pubnet', 'production', 'test net'])('throws on unknown network %s', (value) => {
+    expect(() => readNetworkConfig({ NEXT_PUBLIC_STELLAR_NETWORK: value })).toThrow(
+      /Invalid NEXT_PUBLIC_STELLAR_NETWORK/,
+    );
+  });
+
+  it('throws on an empty string (set but blank) instead of silently defaulting', () => {
+    expect(() => readNetworkConfig({ NEXT_PUBLIC_STELLAR_NETWORK: '' })).toThrow(
+      /Invalid NEXT_PUBLIC_STELLAR_NETWORK/,
+    );
+    // Whitespace-only is the same mistake.
+    expect(() => readNetworkConfig({ NEXT_PUBLIC_STELLAR_NETWORK: '   ' })).toThrow(
+      /Invalid NEXT_PUBLIC_STELLAR_NETWORK/,
+    );
+  });
+
+  it('mainnet never falls back to testnet URLs or passphrase', () => {
+    const c = readNetworkConfig({ NEXT_PUBLIC_STELLAR_NETWORK: 'mainnet' });
+    expect(c.network).toBe('mainnet');
+    expect(c.networkPassphrase).toBe(PASSPHRASE.mainnet);
+    expect(c.rpcUrl).not.toContain('testnet');
+    expect(c.horizonUrl).not.toContain('testnet');
+    expect(c.rpcUrl).toBe('https://mainnet.sorobanrpc.com');
+    expect(c.horizonUrl).toBe('https://horizon.stellar.org');
+  });
+
+  it('testnet defaults to the testnet endpoints', () => {
+    const c = readNetworkConfig({ NEXT_PUBLIC_STELLAR_NETWORK: 'testnet' });
+    expect(c.rpcUrl).toBe('https://soroban-testnet.stellar.org');
+    expect(c.horizonUrl).toBe('https://horizon-testnet.stellar.org');
+  });
+
+  it('an explicit URL overrides the per-network default (but an empty one does not)', () => {
+    const c = readNetworkConfig({
+      NEXT_PUBLIC_STELLAR_NETWORK: 'mainnet',
+      NEXT_PUBLIC_RPC_URL: 'https://my-own-rpc.example.com',
+      NEXT_PUBLIC_HORIZON_URL: '',
+    });
+    expect(c.rpcUrl).toBe('https://my-own-rpc.example.com');
+    expect(c.horizonUrl).toBe('https://horizon.stellar.org'); // '' falls back per-network
+  });
+
+  it('honours a matching NEXT_PUBLIC_NETWORK_PASSPHRASE (as a cross-check)', () => {
+    const c = readNetworkConfig({
+      NEXT_PUBLIC_STELLAR_NETWORK: 'testnet',
+      NEXT_PUBLIC_NETWORK_PASSPHRASE: PASSPHRASE.testnet,
+    });
+    expect(c.networkPassphrase).toBe(PASSPHRASE.testnet);
+  });
+
+  it('throws when NEXT_PUBLIC_NETWORK_PASSPHRASE contradicts the network', () => {
+    // The near-miss this guards: mainnet network var with the testnet passphrase would
+    // sign mainnet txs nobody can verify.
+    expect(() =>
+      readNetworkConfig({
+        NEXT_PUBLIC_STELLAR_NETWORK: 'mainnet',
+        NEXT_PUBLIC_NETWORK_PASSPHRASE: PASSPHRASE.testnet,
+      }),
+    ).toThrow(/does not match the mainnet passphrase/);
+    expect(() =>
+      readNetworkConfig({
+        NEXT_PUBLIC_STELLAR_NETWORK: 'testnet',
+        NEXT_PUBLIC_NETWORK_PASSPHRASE: PASSPHRASE.mainnet,
+      }),
+    ).toThrow(/does not match the testnet passphrase/);
   });
 
   it('reads contract ids from env', () => {

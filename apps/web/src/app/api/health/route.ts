@@ -5,6 +5,7 @@
  * secrets — safe to expose. Returns 200 when the core deps look healthy, 503 otherwise.
  */
 import { rpc } from '@stellar/stellar-sdk';
+import { config } from '../../../lib/stellar';
 
 export const runtime = 'nodejs';
 // Read env + RPC at REQUEST time, never at build. Without this, Next statically
@@ -13,7 +14,7 @@ export const runtime = 'nodejs';
 // probe would falsely report them unconfigured even though they exist at runtime.
 export const dynamic = 'force-dynamic';
 
-const RPC_URL = process.env.NEXT_PUBLIC_RPC_URL ?? 'https://soroban-testnet.stellar.org';
+const RPC_URL = config.rpcUrl;
 
 // Bound how long the probe waits on the RPC before giving up, so a slow/dead
 // endpoint fails the check instead of hanging the request indefinitely.
@@ -35,7 +36,7 @@ type RpcStatus = 'ok' | 'unhealthy' | 'timeout' | 'stalled';
 
 export async function GET(): Promise<Response> {
   const checks: Record<string, unknown> = {
-    network: process.env.NEXT_PUBLIC_STELLAR_NETWORK ?? 'testnet',
+    network: config.network,
     attesterConfigured: Boolean(process.env.ATTESTER_SECRET_KEY),
     faucetConfigured: Boolean(process.env.USDC_ISSUER_SECRET_KEY),
     contracts: {

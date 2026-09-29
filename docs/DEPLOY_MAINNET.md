@@ -119,7 +119,7 @@ Needs `stellar` (with `strkey decode`), `jq` and `git`. Offline tests for the ga
 ## Gate 3 — Post-deployment
 
 **App cutover**
-- [ ] In Vercel prod env, flip `NEXT_PUBLIC_STELLAR_NETWORK=mainnet`, set the mainnet RPC/Horizon, the five mainnet contract ids, and the Circle USDC SAC id.
+- [ ] In Vercel prod env, flip `NEXT_PUBLIC_STELLAR_NETWORK=mainnet`, set the mainnet RPC/Horizon, the five mainnet contract ids, and the Circle USDC SAC id. The network value is validated at build time: a near-miss (`public`, `pubnet`, empty string) or a passphrase mismatch fails the build instead of silently shipping testnet settings; with the network var set, RPC/Horizon default to mainnet endpoints if left empty.
 - [ ] The dev wallet is hard-disabled on mainnet, so passkey infra must be live: set `NEXT_PUBLIC_PASSKEY_WALLET_WASM_HASH` + the relayer secrets (already configured on Vercel).
 - [ ] Remove/disable the testnet faucet route on mainnet (it already refuses when network=mainnet).
 - [ ] Redeploy and smoke-test onboarding + one vouch on the live mainnet app.

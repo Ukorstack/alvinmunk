@@ -118,6 +118,8 @@ NEXT_PUBLIC_NETWORK_PASSPHRASE=Test SDF Network ; September 2015
 NEXT_PUBLIC_HORIZON_URL=https://horizon-testnet.stellar.org
 ```
 
+**Network vars are validated at build time:** `NEXT_PUBLIC_STELLAR_NETWORK` accepts only `testnet` or `mainnet` (case-insensitive) — anything else, including an empty value, fails the build instead of silently falling back to testnet. `NEXT_PUBLIC_NETWORK_PASSPHRASE` is optional; if set it must match the chosen network or the build fails. RPC/Horizon default to the matching network's public endpoints.
+
 **Site URL (metadata, robots, sitemap):** `NEXT_PUBLIC_SITE_URL` is the public origin used for `metadataBase` (absolute `og:image` and canonical URLs), `/robots.txt` and `/sitemap.xml`. Leave it empty for local `pnpm dev` (`http://localhost:3000`); set it when you host outside Vercel. See step 6 for Vercel.
 
 **Never commit `.env.local`** — it is gitignored. Full variable list: [`.env.example`](../.env.example).

@@ -23,12 +23,12 @@ import {
   Address,
   Contract,
   Keypair,
-  Networks,
   TransactionBuilder,
   nativeToScVal,
   scValToNative,
   rpc,
 } from '@stellar/stellar-sdk';
+import { config } from '../../../lib/stellar';
 import {
   MAX_BODY_BYTES,
   REFERRAL_MARKER_KEY,
@@ -70,10 +70,9 @@ function rateLimited(ip: string, now: number): boolean {
   return h.n > RATE_MAX;
 }
 
-const RPC_URL = process.env.NEXT_PUBLIC_RPC_URL ?? 'https://soroban-testnet.stellar.org';
-const HORIZON = process.env.NEXT_PUBLIC_HORIZON_URL ?? 'https://horizon-testnet.stellar.org';
-const PASSPHRASE =
-  process.env.NEXT_PUBLIC_STELLAR_NETWORK === 'mainnet' ? Networks.PUBLIC : Networks.TESTNET;
+const RPC_URL = config.rpcUrl;
+const HORIZON = config.horizonUrl;
+const PASSPHRASE = config.networkPassphrase;
 const QUEST_ID = process.env.NEXT_PUBLIC_QUEST_REGISTRY_CONTRACT_ID ?? '';
 const REP_ID = process.env.NEXT_PUBLIC_REPUTATION_CONTRACT_ID ?? '';
 const REGISTRY_ID = process.env.NEXT_PUBLIC_REGISTRY_CONTRACT_ID ?? '';

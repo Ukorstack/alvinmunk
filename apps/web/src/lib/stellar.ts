@@ -3,7 +3,7 @@
  * serverless attester route. No standing backend — leaderboard reads RPC directly
  * (belts/00-strategy: defer the indexer until scale demands it).
  */
-import { Horizon, rpc, Networks } from '@stellar/stellar-sdk';
+import { Horizon, rpc } from '@stellar/stellar-sdk';
 import { readNetworkConfig } from '@alvinmunk/shared';
 
 // Next.js only inlines LITERAL `process.env.NEXT_PUBLIC_*` member expressions into the
@@ -31,8 +31,12 @@ export const horizon = new Horizon.Server(config.horizonUrl, {
   allowHttp: config.horizonUrl.startsWith('http://'),
 });
 
-export const networkPassphrase =
-  config.network === 'mainnet' ? Networks.PUBLIC : Networks.TESTNET;
+/**
+ * The passphrase comes from readNetworkConfig (derived from NEXT_PUBLIC_STELLAR_NETWORK,
+ * asserted against NEXT_PUBLIC_NETWORK_PASSPHRASE when that var is set) — never recomputed
+ * here, so a mainnet deployment can never sign with the testnet passphrase.
+ */
+export const networkPassphrase = config.networkPassphrase;
 
 /** Native XLM balance as a string, or '0' if the account isn't funded yet. */
 export async function getXlmBalance(address: string): Promise<string> {

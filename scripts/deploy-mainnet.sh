@@ -382,7 +382,6 @@ cat <<EOF
 Mainnet deployment complete. Web env (Vercel production):
 
 NEXT_PUBLIC_STELLAR_NETWORK=mainnet
-NEXT_PUBLIC_NETWORK_PASSPHRASE=$MAINNET_PASSPHRASE
 NEXT_PUBLIC_RPC_URL=<your mainnet RPC URL>
 NEXT_PUBLIC_HORIZON_URL=https://horizon.stellar.org
 NEXT_PUBLIC_REPUTATION_CONTRACT_ID=$ID_reputation

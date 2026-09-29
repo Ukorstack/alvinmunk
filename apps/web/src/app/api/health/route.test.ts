@@ -7,6 +7,11 @@ vi.mock('@stellar/stellar-sdk', () => {
     rpc: {
       Server: vi.fn(),
     },
+    // lib/stellar constructs a Horizon.Server at module load (route imports it for the
+    // validated network config); the health route itself never calls it.
+    Horizon: {
+      Server: vi.fn(),
+    },
   };
 });
 

@@ -19,13 +19,16 @@
  */
 import { ChannelsClient } from '@openzeppelin/relayer-plugin-channels';
 import { Transaction, Keypair, hash as sha256, xdr } from '@stellar/stellar-sdk';
+import { config } from '../../../lib/stellar';
 
 export const runtime = 'nodejs';
 // Read the relayer secrets at REQUEST time, never at build (they're absent then). Same
 // reasoning as /api/health.
 export const dynamic = 'force-dynamic';
 
-const PASSPHRASE = process.env.NEXT_PUBLIC_NETWORK_PASSPHRASE ?? 'Test SDF Network ; September 2015';
+// Derived from NEXT_PUBLIC_STELLAR_NETWORK via readNetworkConfig — never a hardcoded
+// default, so a mainnet relayer can't rebuild testnet-passphrase deploys (and vice versa).
+const PASSPHRASE = config.networkPassphrase;
 
 function json(body: unknown, status: number): Response {
   return new Response(JSON.stringify(body), {

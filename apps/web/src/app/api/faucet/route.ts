@@ -13,19 +13,19 @@ import {
   Contract,
   Horizon,
   Keypair,
-  Networks,
   Operation,
   TransactionBuilder,
   nativeToScVal,
   rpc,
 } from '@stellar/stellar-sdk';
+import { config } from '../../../lib/stellar';
 
 export const runtime = 'nodejs';
 
-const HORIZON = process.env.NEXT_PUBLIC_HORIZON_URL ?? 'https://horizon-testnet.stellar.org';
-const RPC_URL = process.env.NEXT_PUBLIC_RPC_URL ?? 'https://soroban-testnet.stellar.org';
-const IS_MAINNET = process.env.NEXT_PUBLIC_STELLAR_NETWORK === 'mainnet';
-const PASSPHRASE = IS_MAINNET ? Networks.PUBLIC : Networks.TESTNET;
+const HORIZON = config.horizonUrl;
+const RPC_URL = config.rpcUrl;
+const IS_MAINNET = config.network === 'mainnet';
+const PASSPHRASE = config.networkPassphrase;
 const DRIP = '5'; // test USDC per request
 const RATE_MAX = 3;
 const RATE_WINDOW_MS = 60_000;

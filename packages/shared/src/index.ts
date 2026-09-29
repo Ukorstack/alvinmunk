@@ -91,14 +91,64 @@ export const PASSPHRASE = {
   mainnet: 'Public Global Stellar Network ; September 2015',
 } as const;
 
-/** Reads the public NEXT_PUBLIC_* env into a typed config (client + server safe). */
+/** Per-network Soroban RPC defaults. Never mix: a mainnet network var with a testnet RPC would sign mainnet-passphrase txs against a testnet server. */
+export const DEFAULT_RPC_URL: Record<StellarNetwork, string> = {
+  testnet: 'https://soroban-testnet.stellar.org',
+  mainnet: 'https://mainnet.sorobanrpc.com',
+} as const;
+
+/** Per-network Horizon defaults (balances). */
+export const DEFAULT_HORIZON_URL: Record<StellarNetwork, string> = {
+  testnet: 'https://horizon-testnet.stellar.org',
+  mainnet: 'https://horizon.stellar.org',
+} as const;
+
+/**
+ * Validate a raw network string into a {@link StellarNetwork}, throwing on anything else.
+ * Accepts case/whitespace variants of the canonical values (so `Mainnet ` and `TESTNET`
+ * work) and nothing more — near-misses like `public`, `pubnet` or the empty string are a
+ * deployment mistake, not a default.
+ */
+function normalizeNetwork(raw: string): StellarNetwork {
+  const value = raw.trim().toLowerCase();
+  if (value === 'testnet' || value === 'mainnet') return value;
+  throw new Error(
+    `Invalid NEXT_PUBLIC_STELLAR_NETWORK: ${JSON.stringify(raw)}. Expected 'testnet' or 'mainnet' ` +
+      '(an empty value must be unset, not set to ""). Refusing to guess — fix the env and rebuild.',
+  );
+}
+
+/**
+ * Reads the public NEXT_PUBLIC_* env into a typed config (client + server safe).
+ *
+ * Fails fast on a bad network value: the alternative is a silent testnet fallback, which
+ * on a mainnet near-miss (`public`, `pubnet`, `Mainnet`, an empty string) ships an app
+ * that signs with the testnet passphrase and re-enables the dev wallet (a raw secret key
+ * in localStorage) — exactly what the mainnet hard-disable exists to prevent. Unset still
+ * defaults to testnet (fresh clone / CI), matching the documented default.
+ */
 export function readNetworkConfig(env: Record<string, string | undefined>): NetworkConfig {
-  const network = (env.NEXT_PUBLIC_STELLAR_NETWORK as StellarNetwork) ?? 'testnet';
+  const raw = env.NEXT_PUBLIC_STELLAR_NETWORK;
+  const network: StellarNetwork =
+    raw === undefined ? 'testnet' : normalizeNetwork(raw);
+
+  const passphraseEnv = (env.NEXT_PUBLIC_NETWORK_PASSPHRASE ?? '').trim();
+  if (passphraseEnv && passphraseEnv !== PASSPHRASE[network]) {
+    throw new Error(
+      `NEXT_PUBLIC_NETWORK_PASSPHRASE does not match the ${network} passphrase — it would sign ` +
+        'transactions for the wrong network. Remove it (the passphrase is derived from ' +
+        'NEXT_PUBLIC_STELLAR_NETWORK) or set it to PASSPHRASE.' +
+        network[0].toUpperCase() +
+        network.slice(1) +
+        ' from @alvinmunk/shared.',
+    );
+  }
+
   return {
     network,
-    rpcUrl: env.NEXT_PUBLIC_RPC_URL ?? 'https://soroban-testnet.stellar.org',
-    networkPassphrase: env.NEXT_PUBLIC_NETWORK_PASSPHRASE ?? PASSPHRASE[network],
-    horizonUrl: env.NEXT_PUBLIC_HORIZON_URL ?? 'https://horizon-testnet.stellar.org',
+    rpcUrl: env.NEXT_PUBLIC_RPC_URL?.trim() || DEFAULT_RPC_URL[network],
+    networkPassphrase: PASSPHRASE[network],
+    horizonUrl: env.NEXT_PUBLIC_HORIZON_URL?.trim() || DEFAULT_HORIZON_URL[network],
     contracts: {
       reputation: env.NEXT_PUBLIC_REPUTATION_CONTRACT_ID ?? '',
       questRegistry: env.NEXT_PUBLIC_QUEST_REGISTRY_CONTRACT_ID ?? '',
